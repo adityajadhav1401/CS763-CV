@@ -1,0 +1,7 @@
+2
+flatten
+linear 11664 128
+relu
+linear 128 6
+seven/W.bin
+seven/B.bin

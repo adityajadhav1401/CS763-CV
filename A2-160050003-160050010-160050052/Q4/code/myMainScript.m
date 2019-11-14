@@ -1,0 +1,72 @@
+%% MyMainScript
+
+tic;
+Path = '../input/pier';
+DIR = dir(Path);
+N = size(DIR, 1)-2;
+if N==2
+    I1 = imread(strcat(Path, '/1.JPG'));
+    I2 = imread(strcat(Path, '/2.JPG'));
+    points1 = detectSURFFeatures(rgb2gray(I1));
+    points2 = detectSURFFeatures(rgb2gray(I2));
+    [f1,vpts1] = extractFeatures(rgb2gray(I1),points1);
+    [f2,vpts2] = extractFeatures(rgb2gray(I2),points2);
+    indexPairs = matchFeatures(f1,f2) ;
+    matchedPoints1 = vpts1(indexPairs(:,1));
+    matchedPoints2 = vpts2(indexPairs(:,2));
+    H12 = ransacHomography(matchedPoints1.Location, matchedPoints2.Location, 0.1);
+    S = zeros(2*size(I1,1)+20, 2*size(I1,2)+20, 3);
+    S(size(I1,1)+1:end-20,21:size(I1,2)+20,:) = I1;
+    for i=1:size(S,1)
+        for j=1:size(S,2)
+            if (j<=20 || j>size(I1,2)+20 || i<=size(I1,1) || i>size(S,1)-20)
+                y = H12*[j-20; i-size(I1,1);1];
+                y = y ./ repmat(y(3, :), 3, 1);
+                y = round(y(1:2,:));
+                if(1<=y(1) && y(1)<=size(I2,2) && 1<=y(2) && y(2)<=size(I2,1))
+                    S(i,j,:) = I2(y(2), y(1),:);
+                end
+            end
+        end
+    end
+elseif N==3
+    I1 = imread(strcat(Path, '/1.JPG'));
+    I2 = imread(strcat(Path, '/2.JPG'));
+    I3 = imread(strcat(Path, '/3.JPG'));
+    points1 = detectSURFFeatures(rgb2gray(I1));
+    points2 = detectSURFFeatures(rgb2gray(I2));
+    points3 = detectSURFFeatures(rgb2gray(I3));
+    [f1,vpts1] = extractFeatures(rgb2gray(I1),points1);
+    [f2,vpts2] = extractFeatures(rgb2gray(I2),points2);
+    [f3,vpts3] = extractFeatures(rgb2gray(I3),points3);
+    indexPairs12 = matchFeatures(f1,f2) ;
+    matchedPoints1 = vpts1(indexPairs12(:,1));
+    matchedPoints2 = vpts2(indexPairs12(:,2));
+    H21 = ransacHomography(matchedPoints2.Location, matchedPoints1.Location, 0.01);
+    indexPairs32 = matchFeatures(f3,f2) ;
+    matchedPoints3 = vpts3(indexPairs32(:,1));
+    matchedPoints4 = vpts2(indexPairs32(:,2));
+    H23 = ransacHomography(matchedPoints4.Location, matchedPoints3.Location, 0.01);
+    S = zeros(3*size(I2,1), 3*size(I2,2), 3);
+    S(size(I2,1)+1:2*size(I2,1),size(I2,2)+1:2*size(I2,2),:) = I2;
+    for i=1:size(S,1)
+        for j=1:size(S,2)
+            if (i<=size(I2,1) || i>2*size(I2,1) || j<=size(I2,2) || j>2*size(I2,2))
+                y21 = H21*[j-size(I2,2);i-size(I2,1);1];
+                y21 = y21 ./ repmat(y21(3, :), 3, 1);
+                y21 = round(y21(1:2,:));
+                y23 = H23*[j-size(I2,2);i-size(I2,1);1];
+                y23 = y23 ./ repmat(y23(3, :), 3, 1);
+                y23 = round(y23(1:2,:));
+                if(1<=y21(1) && y21(1)<=size(I1,2) && 1<=y21(2) && y21(2)<=size(I1,1))
+                    S(i,j,:) = I1(y21(2), y21(1),:);    
+                elseif(1<=y23(1) && y23(1)<=size(I3,2) && 1<=y23(2) && y23(2)<=size(I3,1))
+                    S(i,j,:) = I3(y23(2), y23(1),:);
+                end
+            end
+        end
+    end
+end
+imshow(S./255);
+toc;
+
